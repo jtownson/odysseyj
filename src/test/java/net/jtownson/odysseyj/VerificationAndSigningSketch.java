@@ -15,7 +15,6 @@ import static net.jtownson.odysseyj.URICreator.uri;
 public class VerificationAndSigningSketch {
     @Test
     public void generateAndParseVerifiableCredentials() throws IOException, URISyntaxException {
-
         SignatureDefinition signatureDefinition = KeyFoo.getKeyPair();
 
         String jws = VC.jwsBuilder()
