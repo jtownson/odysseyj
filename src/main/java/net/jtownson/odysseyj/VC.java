@@ -1,20 +1,17 @@
 package net.jtownson.odysseyj;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
 import lombok.SneakyThrows;
-import org.jose4j.jws.JsonWebSignature;
 
 import java.net.URI;
-import java.net.URL;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Future;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
@@ -59,25 +56,15 @@ public class VC {
             LocalDateTime expirationDate) {
 
         VC vc = new VC(id, issuer, issuanceDate, expirationDate, types(additionalTypes), contexts(additionalContexts), credentialSubjects);
-        JsonWebSignature jws = new JsonWebSignature();
-        jws.setKey(signatureDefinition.getPrivateKey());
-        jws.getHeaders().setFullHeaderAsJsonString(headers(signatureDefinition.getPublicKeyRef(), signatureDefinition.getAlg(), vc));
-        return jws.getCompactSerialization();
+        return JwsCodec.encodeJws(
+                signatureDefinition.getPrivateKey(),
+                signatureDefinition.getPublicKeyRef(),
+                signatureDefinition.getAlg(),
+                vc);
     }
 
-    private static String headers(URL publicKeyRef, String alg, VC vc) {
-        ObjectMapper om = new ObjectMapper();
-        ObjectNode n = om.createObjectNode();
-        n.put("cty", "application/vc+json");
-        n.put("kid", publicKeyRef.toString());
-        n.put("alg", alg);
-        n.put("iss", vc.issuer.toString());
-        n.put("nbf", vc.issuanceDate.toEpochSecond(ZoneOffset.UTC));
-        if (vc.expirationDate != null) {
-            n.put("exp", vc.expirationDate.toEpochSecond(ZoneOffset.UTC));
-        }
-        n.put("vc", "<encoded vc>");
-        return n.toString();
+    public static Future<VC> fromJws(List<String> algWhitelist, PublicKeyResolver publicKeyResolver, String jwsSer) {
+        return JwsCodec.decodeJws(algWhitelist, publicKeyResolver, jwsSer);
     }
 
     private static List<String> types(List<String> additionalTypes) {
