@@ -1,11 +1,13 @@
 package net.jtownson.odysseyj;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
 import lombok.SneakyThrows;
 
+import java.io.File;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -57,6 +59,10 @@ public class VC {
 
     public static Future<VC> fromJws(List<String> algWhitelist, PublicKeyResolver publicKeyResolver, String jwsSer) {
         return JwsCodec.decodeJws(algWhitelist, publicKeyResolver, jwsSer);
+    }
+
+    public static VC fromJsonLd(File jsonLdFile) throws ParseError {
+        return JsonCodec.decode(jsonLdFile);
     }
 
     private static List<String> types(List<String> additionalTypes) {

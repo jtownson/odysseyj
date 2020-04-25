@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import net.jtownson.odysseyj.VC.VCBuilder;
 
+import java.io.File;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static net.jtownson.odysseyj.URICreator.isAbsoluteUri;
 import static net.jtownson.odysseyj.URICreator.uri;
 
 public class JsonCodec {
@@ -40,6 +43,15 @@ public class JsonCodec {
         }
 
         return json;
+    }
+
+    public static VC decode(File json) throws ParseError {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return decode(objectMapper.readTree(json));
+        } catch (IOException e) {
+            throw new ParseError("Unable to parse json. Caught an IOException: " + e.getMessage());
+        }
     }
 
     public static VC decode(JsonNode json) throws ParseError {
@@ -112,6 +124,8 @@ public class JsonCodec {
         if (contextNode.getNodeType() == JsonNodeType.STRING) {
             if (contextNode.asText().equals(v1)) {
                 builder.context(uri(v1));
+            } else {
+                throw new ParseError("Context string must be " + v1);
             }
         }
         else if (contextNode.isArray()) {
@@ -119,7 +133,11 @@ public class JsonCodec {
             if (ctxs.size() == 0) {
                 throw new ParseError(
                         "context field must be an array of the form ["+v1+", <uris...>].");
-            } else {
+            } else if (ctxs.size() == 1) {
+                throw new ParseError(
+                        "context field must be an array of the form ["+v1+", <uris...>].");
+            }
+            else {
                 JsonNode c0 = ctxs.get(0);
                 if (c0.getNodeType() != JsonNodeType.STRING || !c0.asText().equals(v1)) {
                     throw new ParseError(
@@ -129,11 +147,14 @@ public class JsonCodec {
                 }
                 for (int i = 1; i < ctxs.size(); i++) {
                     JsonNode c = ctxs.get(i);
-                    if (c.getNodeType() != JsonNodeType.STRING) {
-                        throw new ParseError(
-                                "context field must be an array of the form ["+v1+", <uris...>].");
+                    if (c.getNodeType() == JsonNodeType.STRING) {
+                        String v = c.asText();
+                        if (URICreator.isAbsoluteUri(v)) {
+                            builder.context(uri(c.asText()));
+                        } else {
+                            throw new ParseError(v + " is not a valid URI");
+                        }
                     }
-                    builder.context(uri(c.asText()));
                 }
             }
         } else {
@@ -168,7 +189,12 @@ public class JsonCodec {
             if (issuer.getNodeType() != JsonNodeType.STRING) {
                 throw new ParseError("issuer must be a string.");
             } else {
-                builder.issuer(uri(issuer.asText()));
+                String v = issuer.asText();
+                if (isAbsoluteUri(v)) {
+                    builder.issuer(uri(issuer.asText()));
+                } else {
+                    throw new ParseError("Issuer must a valid URI. Got " + v);
+                }
             }
         } else {
             throw new ParseError("issuer cannot be null");
