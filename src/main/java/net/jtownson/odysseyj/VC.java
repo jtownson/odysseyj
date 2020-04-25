@@ -17,14 +17,15 @@ import static java.util.Collections.unmodifiableList;
 import static net.jtownson.odysseyj.URICreator.uri;
 
 @Data
+@Builder
 public class VC {
     private final String id;
     private final URI issuer;
     private final LocalDateTime issuanceDate;
     private final LocalDateTime expirationDate;
-    private final List<String> types;
-    private final List<URI> contexts;
-    private final List<ObjectNode> credentialSubjects;
+    @Singular private final List<String> types;
+    @Singular private final List<URI> contexts;
+    @Singular private final List<ObjectNode> credentialSubjects;
 
     public Optional<String> getId() {
         return Optional.ofNullable(id);
