@@ -1,5 +1,6 @@
 package net.jtownson.odysseyj;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
@@ -9,13 +10,11 @@ import org.jose4j.jws.JsonWebSignature;
 import java.net.URL;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-import static java.util.Collections.emptyList;
 import static net.jtownson.odysseyj.URICreator.url;
 
 public class JwsCodec {
@@ -37,7 +36,7 @@ public class JwsCodec {
         n.put("iss", vc.getIssuer().toString());
         n.put("nbf", vc.getIssuanceDate().toEpochSecond(ZoneOffset.UTC));
         vc.getExpirationDate().map(exp -> exp.toEpochSecond(ZoneOffset.UTC));
-        n.put("vc", "<encoded vc>");
+        n.set("vc", JsonCodec.encode(vc));
         return n.toString();
     }
 
@@ -58,10 +57,13 @@ public class JwsCodec {
                 .thenApply(v -> parseVc(jws));
     }
 
+    @SneakyThrows
     private static VC parseVc(JsonWebSignature jws) {
-        String vc = jws.getHeader("vc");
-        System.out.println(vc);
-        return new VC("", URICreator.uri("test:uri"), LocalDateTime.now(), LocalDateTime.now(), emptyList(), emptyList(), emptyList());
+        String headerString = jws.getHeaders().getFullHeaderAsJsonString();
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode headerJson = objectMapper.readTree(headerString);
+        JsonNode vc = headerJson.get("vc");
+        return JsonCodec.decode(vc);
     }
 
     @SneakyThrows

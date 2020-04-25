@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Future;
 
-import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 import static net.jtownson.odysseyj.URICreator.uri;
 
@@ -33,14 +32,6 @@ public class VC {
 
     public Optional<LocalDateTime> getExpirationDate() {
         return Optional.ofNullable(expirationDate);
-    }
-
-    public List<String> getTypes() {
-        return types(emptyList());
-    }
-
-    public List<URI> getContexts() {
-        return contexts(emptyList());
     }
 
     @SneakyThrows

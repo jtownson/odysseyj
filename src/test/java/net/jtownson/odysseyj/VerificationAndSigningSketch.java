@@ -45,7 +45,7 @@ public class VerificationAndSigningSketch {
         ObjectNode subject = objectMapper.createObjectNode();
         subject.put("id", "did:ata:abc123");
         subject.put("name", "Her Majesty The Queen");
-        subject.put("address", "Buckingham Palance, SW1A 1AA");
+        subject.put("address", "Buckingham Palace, SW1A 1AA");
         return subject;
     }
 }
