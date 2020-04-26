@@ -9,25 +9,28 @@ import net.jtownson.odysseyj.VC.VCBuilder;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static net.jtownson.odysseyj.URICreator.isAbsoluteUri;
 import static net.jtownson.odysseyj.URICreator.uri;
 
-public class JsonCodec {
+public class VCJsonCodec {
 
     public static JsonNode encode(VC vc) {
         ObjectMapper objectMapper = new ObjectMapper();
         ObjectNode json = objectMapper.createObjectNode();
-        putContext(vc, objectMapper, json);
-        putId(vc, json);
-        putType(vc, objectMapper, json);
+        putContext(vc.getContexts(), objectMapper, json);
+        putType(vc.getTypes(), objectMapper, json);
+        putId(vc.getId(), json);
         json.put("issuer", vc.getIssuer().toString());
         json.put("issuanceDate", dfRfc3339.format(vc.getIssuanceDate()));
         if (vc.getExpirationDate().isPresent()) {
@@ -60,9 +63,9 @@ public class JsonCodec {
             throw new ParseError("vc must be a JSON object.");
         }
 
-        decodeId(json, builder);
-        decodeType(json, builder);
-        decodeContext(json, builder);
+        decodeId(json, builder::id);
+        decodeType(json, builder::type, "VerifiableCredential");
+        decodeContext(json, builder::context);
         decodeIssuer(json, builder);
         decodeIssuanceDate(json, builder);
         decodeExpirationDate(json, builder);
@@ -92,38 +95,38 @@ public class JsonCodec {
         }
     }
 
-    private static void decodeType(JsonNode json, VCBuilder builder) throws ParseError {
+    static void decodeType(JsonNode json, Consumer<String> builder, String initialType) throws ParseError {
         JsonNode typeNode = json.get("type");
         if (typeNode == null || ! typeNode.isArray()) {
-            throw new ParseError("type field must be an array of the form [VerifiableCredential, <string values...>].");
+            throw new ParseError("type field must be an array of the form ["+initialType+", <string values...>].");
         }
 
         List<JsonNode> types = toList(typeNode.elements());
         if (types.size() == 0) {
-            throw new ParseError("type field must be an array of the form [VerifiableCredential, <string values...>].");
+            throw new ParseError("type field must be an array of the form ["+initialType+", <string values...>].");
         } else {
             JsonNode t0 = types.get(0);
-            if (t0.getNodeType() != JsonNodeType.STRING || !t0.asText().equals("VerifiableCredential")) {
-                throw new ParseError("type field must be an array of the form [VerifiableCredential, <string values...>].");
+            if (t0.getNodeType() != JsonNodeType.STRING || !t0.asText().equals(initialType)) {
+                throw new ParseError("type field must be an array of the form ["+initialType+", <string values...>].");
             }
-            builder.type("VerifiableCredential");
+            builder.accept(initialType);
 
             for (int i = 1; i < types.size(); i++) {
                 JsonNode tn = types.get(i);
                 if (tn.getNodeType() != JsonNodeType.STRING) {
-                    throw new ParseError("type field must be an array of the form [VerifiableCredential, <string values...>].");
+                    throw new ParseError("type field must be an array of the form ["+initialType+", <string values...>].");
                 }
-                builder.type(tn.asText());
+                builder.accept(tn.asText());
             }
         }
     }
 
-    private static void decodeContext(JsonNode json, VCBuilder builder) throws ParseError {
+    static void decodeContext(JsonNode json, Consumer<URI> builder) throws ParseError {
         String v1 = "https://www.w3.org/2018/credentials/v1";
         JsonNode contextNode = json.get("@context");
         if (contextNode.getNodeType() == JsonNodeType.STRING) {
             if (contextNode.asText().equals(v1)) {
-                builder.context(uri(v1));
+                builder.accept(uri(v1));
             } else {
                 throw new ParseError("Context string must be " + v1);
             }
@@ -143,14 +146,14 @@ public class JsonCodec {
                     throw new ParseError(
                             "context field must be an array of the form ["+v1+", <uris...>].");
                 } else {
-                    builder.context(uri(c0.asText()));
+                    builder.accept(uri(c0.asText()));
                 }
                 for (int i = 1; i < ctxs.size(); i++) {
                     JsonNode c = ctxs.get(i);
                     if (c.getNodeType() == JsonNodeType.STRING) {
                         String v = c.asText();
                         if (URICreator.isAbsoluteUri(v)) {
-                            builder.context(uri(c.asText()));
+                            builder.accept(uri(c.asText()));
                         } else {
                             throw new ParseError(v + " is not a valid URI");
                         }
@@ -163,7 +166,7 @@ public class JsonCodec {
         }
     }
 
-    private static <T> List<T> toList(Iterator<T> i) {
+    static <T> List<T> toList(Iterator<T> i) {
         return toList(() -> i);
     }
 
@@ -173,13 +176,13 @@ public class JsonCodec {
                 .collect(Collectors.toList());
     }
 
-    private static void decodeId(JsonNode json, VCBuilder builder) throws ParseError {
+    static void decodeId(JsonNode json, Consumer<String> builder) throws ParseError {
         JsonNode idNode = json.get("id");
         if (idNode != null) {
             if (idNode.getNodeType() != JsonNodeType.STRING) {
                 throw new ParseError("value of id field must be a string.");
             }
-            builder.id(idNode.asText());
+            builder.accept(idNode.asText());
         }
     }
 
@@ -227,24 +230,22 @@ public class JsonCodec {
         }
     }
 
-    private static void putType(VC vc, ObjectMapper objectMapper, ObjectNode json) {
+    static void putId(Optional<String> id, ObjectNode json) {
+        id.ifPresent(s -> json.put("id", s));
+    }
+
+    static void putType(List<String> types, ObjectMapper objectMapper, ObjectNode json) {
         ArrayNode type = objectMapper.createArrayNode();
-        vc.getTypes().forEach(type::add);
+        types.forEach(type::add);
         json.set("type", type);
     }
 
-    private static void putId(VC vc, ObjectNode json) {
-        if (vc.getId().isPresent()) {
-            json.put("id", vc.getId().get());
-        }
-    }
-
-    private static void putContext(VC vc, ObjectMapper objectMapper, ObjectNode json) {
-        if (vc.getContexts().size() == 1) {
-            json.put("@context", vc.getContexts().get(0).toString());
-        } else if (vc.getContexts().size() > 1) {
+    static void putContext(List<URI> contexts, ObjectMapper objectMapper, ObjectNode json) {
+        if (contexts.size() == 1) {
+            json.put("@context", contexts.get(0).toString());
+        } else if (contexts.size() > 1) {
             ArrayNode ctx = objectMapper.createArrayNode();
-            vc.getContexts().forEach(uri -> ctx.add(uri.toString()));
+            contexts.forEach(uri -> ctx.add(uri.toString()));
             json.set("@context", ctx);
         }
     }

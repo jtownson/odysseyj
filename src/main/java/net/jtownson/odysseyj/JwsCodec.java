@@ -36,7 +36,7 @@ public class JwsCodec {
         n.put("iss", vc.getIssuer().toString());
         n.put("nbf", vc.getIssuanceDate().toEpochSecond(ZoneOffset.UTC));
         vc.getExpirationDate().map(exp -> exp.toEpochSecond(ZoneOffset.UTC));
-        n.set("vc", JsonCodec.encode(vc));
+        n.set("vc", VCJsonCodec.encode(vc));
         return n.toString();
     }
 
@@ -63,7 +63,7 @@ public class JwsCodec {
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode headerJson = objectMapper.readTree(headerString);
         JsonNode vc = headerJson.get("vc");
-        return JsonCodec.decode(vc);
+        return VCJsonCodec.decode(vc);
     }
 
     @SneakyThrows

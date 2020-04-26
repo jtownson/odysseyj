@@ -1,6 +1,5 @@
 package net.jtownson.odysseyj;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Builder;
 import lombok.Data;
@@ -62,7 +61,7 @@ public class VC {
     }
 
     public static VC fromJsonLd(File jsonLdFile) throws ParseError {
-        return JsonCodec.decode(jsonLdFile);
+        return VCJsonCodec.decode(jsonLdFile);
     }
 
     private static List<String> types(List<String> additionalTypes) {
